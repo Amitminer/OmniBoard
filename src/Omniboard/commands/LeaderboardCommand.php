@@ -34,7 +34,7 @@ class LeaderboardCommand extends Command {
         $this->plugin->getConfig()->setNested("topisland.position", [$position->getX(), $position->getY(), $position->getZ()]);
         $this->plugin->saveConfig();
 
-        $sender->sendMessage("Leaderboard position set!");
+        $sender->sendMessage("Leaderboard position set! at" . $position->__toString());
         return true;
     }
 }

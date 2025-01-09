@@ -29,10 +29,10 @@ class UpdateTask extends Task {
             if ($this->floatingText === null) {
                 $this->floatingText = new BaseFloatingText($world, $position, "Top Island Leaderboard", "");
                 print("Floating text created");
-                // var_dump($this->floatingText);
+                var_dump($this->floatingText);
             } else {
                 print("Floating text already exists");
-                // var_dump($this->floatingText);
+                var_dump($this->floatingText);
             }
 
             $this->plugin->getConfigManager()->getTopIslands(function(array $data) {

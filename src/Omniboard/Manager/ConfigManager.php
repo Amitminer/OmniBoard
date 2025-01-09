@@ -18,14 +18,14 @@ class ConfigManager {
         $this->database = libasynql::create($plugin, $plugin->getConfig()->get("database"), [
             "sqlite" => "sqlite.sql"]);
 
-        $this->database->executeGeneric("players.createTable");
+        $this->database->asyncGeneric("players.createTable");
     }
 
     public function addPoints(string $playerName, float $points): void {
-        $this->database->executeInsert("players.updatePoints", ["player" => $playerName, "points" => $points]);
+        $this->database->asyncInsert("players.updatePoints", ["player" => $playerName, "points" => $points]);
     }
 
     public function getTopIslands(callable $callback): void {
-        $this->database->executeSelect("players.getTopPlayers", [], $callback);
+        $this->database->asyncSelect("players.getTopPlayers", [], $callback);
     }
 }

@@ -22,7 +22,8 @@ class EventListener implements Listener
     {
         $player = $event->getPlayer();
         foreach ($event->getTransaction()->getBlocks() as [$x, $y, $z, $block]) {
-            $points = BlockPoints::getPointsForBlock($block->getTypeId());
+            $points = $this->plugin->getBlockPoints()->getPointsForBlock($block->getTypeId());
+            // print("Points: {$points}");
 
             if ($points > 0) {
                 $this->plugin->getConfigManager()->addPoints($player->getName(), $points);

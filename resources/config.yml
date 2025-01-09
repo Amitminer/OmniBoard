@@ -1,0 +1,6 @@
+topisland:
+  title: "Top Island Leaderboard"
+  position: [100, 64, 100]
+database:
+  type: sqlite
+  file: omniboard.sqlite

@@ -1,0 +1,10 @@
+name: OmniBoard
+api: 5.0.0
+version: 1.0-alpha
+author: AmitxD
+main: Omniboard\Omniboard
+
+permissions:
+  omniboard.leaderboards:
+    description: "Allows the user to run the setmineboard command"
+    default: op

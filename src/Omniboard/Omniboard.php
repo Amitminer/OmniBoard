@@ -6,33 +6,86 @@ namespace Omniboard;
 
 use Omniboard\commands\LeaderboardCommand;
 use pocketmine\plugin\PluginBase;
-use pocketmine\event\Listener;
-use pocketmine\Server;
 use Omniboard\Manager\ConfigManager;
+use Omniboard\Manager\DatabaseManager;
 use Omniboard\tasks\UpdateTask;
 use Omniboard\Utils\BlockPoints;
 
-class Omniboard extends PluginBase {
+/**
+ * The main class for the Omniboard plugin.
+ */
+class Omniboard extends PluginBase
+{
 
     private ConfigManager $configManager;
     private BlockPoints $blockPoints;
+    private DatabaseManager $databaseManager;
 
-    protected function onEnable(): void {
+    /**
+     * Initializes the plugin, sets up configuration, and initializes managers and tasks.
+     */
+    protected function onEnable(): void
+    {
         $this->saveDefaultConfig();
-        $this->configManager = new ConfigManager($this);
-        $this->blockPoints = new BlockPoints($this);
+        $this->initializeManagers();
+        $this->databaseManager->loadDatabase();
 
-
+        // Register event listener
         $this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
-        $this->getServer()->getCommandMap()->register("omniboard",new LeaderboardCommand($this));
-        $this->getScheduler()->scheduleRepeatingTask(new UpdateTask($this), 20 * 60); // Update every minute
+
+        // Register command
+        $this->getServer()->getCommandMap()->register("omniboard", new LeaderboardCommand($this));
+
+        /** @var int $updateInterval */
+        $updateInterval = $this->getConfig()->get("update-interval", 60); // Default to 60 seconds
+        $this->getScheduler()->scheduleRepeatingTask(new UpdateTask($this), 20 * (int) $updateInterval);
     }
 
-    public function getBlockPoints(): BlockPoints {
+    /**
+     * Closes the database connection.
+     */
+    public function onDisable(): void
+    {
+        $this->databaseManager->getDatabase(false);
+    }
+
+    /**
+     * Initializes all managers used by the plugin.
+     */
+    private function initializeManagers(): void
+    {
+        $this->configManager = new ConfigManager($this);
+        $this->blockPoints = new BlockPoints($this);
+        $this->databaseManager = new DatabaseManager($this);
+    }
+
+    /**
+     * Get the DatabaseManager instance.
+     * 
+     * @return DatabaseManager The database manager instance.
+     */
+    public function getDatabaseManager(): DatabaseManager
+    {
+        return $this->databaseManager;
+    }
+
+    /**
+     * Get the BlockPoints instance.
+     * 
+     * @return BlockPoints The block points utility instance.
+     */
+    public function getBlockPoints(): BlockPoints
+    {
         return $this->blockPoints;
     }
 
-    public function getConfigManager(): ConfigManager {
+    /**
+     * Get the ConfigManager instance.
+     * 
+     * @return ConfigManager The config manager instance.
+     */
+    public function getConfigManager(): ConfigManager
+    {
         return $this->configManager;
     }
 }

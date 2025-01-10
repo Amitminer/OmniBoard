@@ -1,10 +1,14 @@
 database:
   type: sqlite
-  file: omniboard.sqlite
+  sqlite:
+    file: omniboard_data.db
 
 topisland:
   title: "Top Island Leaderboard"
-  position: [0, 100, 0]
+  position:
+  - 205
+  - 80
+  - 206
 
 Blocks:
   diamond_ore: 0.55
@@ -16,3 +20,5 @@ Blocks:
   iron_block: 0.5
   emerald_block: 2.0
   stone: 0.2
+
+update-interval: 10

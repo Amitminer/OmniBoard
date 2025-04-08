@@ -108,4 +108,26 @@ class ConfigManager
         $value = $this->getConfigValue(ConfigKeys::TOP_ISLAND_TITLE, "Top Island Leaderboard");
         return is_string($value) ? $value : "Top Island Leaderboard";
     }
+
+    /**
+     * Get the top money position.
+     *
+     * @return array<mixed, mixed>|null The top money position, if exists.
+     */
+    public function getTopMoneyPosition(): ?array
+    {
+        $value = $this->getNestedConfigValue(ConfigKeys::TOP_MONEY_POSITION);
+        return is_array($value) ? $value : null;
+    }
+
+    /**
+     * Get the top money title.
+     *
+     * @return string The top money title.
+     */
+    public function getTopMoneyTitle(): string
+    {
+        $value = $this->getConfigValue(ConfigKeys::TOP_MONEY_TITLE, "Top Money Leaderboard");
+        return is_string($value) ? $value : "Top Money Leaderboard";
+    }
 }

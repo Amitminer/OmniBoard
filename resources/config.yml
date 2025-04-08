@@ -5,20 +5,30 @@ database:
 
 topisland:
   title: "Top Island Leaderboard"
+  world: "Lobby"
   position:
-  - 205
-  - 80
-  - 206
+  - 190.5
+  - 80.9
+  - 263.8
+
+topmoney:
+  title: "Top Money Leaderboard"
+  world: "Lobby"
+  position:
+  - 245.1
+  - 74.2
+  - 302.9
 
 Blocks:
-  diamond_ore: 0.55
-  gold_ore: 0.15
-  iron_ore: 0.25
-  emerald_ore: 1.0
-  diamond_block: 1.0
-  gold_block: 0.3
-  iron_block: 0.5
-  emerald_block: 2.0
-  stone: 0.2
-
-update-interval: 10
+  gold_ore: 0.25
+  iron_ore: 0.35
+  diamond_ore: 0.6
+  emerald_ore: 0.8
+  emerald_block: 7.2
+  diamond_block: 5.4
+  gold_block: 2.25
+  iron_block: 3.15
+  stone: 0.15
+DefaultPoints: 0.20 // default value for blocks not listed above
+update-interval: 300
+...

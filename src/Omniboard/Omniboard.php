@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace Omniboard;
 
 use Omniboard\commands\LeaderboardCommand;
+use Omniboard\Leaderboard\FloatingTextEntity;
 use pocketmine\plugin\PluginBase;
 use Omniboard\Manager\ConfigManager;
 use Omniboard\Manager\DatabaseManager;
 use Omniboard\tasks\UpdateTask;
 use Omniboard\Utils\BlockPoints;
+use pocketmine\entity\Entity;
+use pocketmine\entity\EntityDataHelper;
+use pocketmine\entity\EntityFactory;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\world\World;
 
 /**
  * The main class for the Omniboard plugin.
@@ -33,11 +39,14 @@ class Omniboard extends PluginBase
         // Register event listener
         $this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 
+        // Register custom entity
+        $this->registerLeaderboardEntity();
+        
         // Register command
         $this->getServer()->getCommandMap()->register("omniboard", new LeaderboardCommand($this));
 
         /** @var int $updateInterval */
-        $updateInterval = $this->getConfig()->get("update-interval", 60); // Default to 60 seconds
+        $updateInterval = $this->getConfig()->get("update-interval", 300); // Default to 60 seconds
         $this->getScheduler()->scheduleRepeatingTask(new UpdateTask($this), 20 * (int) $updateInterval);
     }
 
@@ -47,6 +56,26 @@ class Omniboard extends PluginBase
     public function onDisable(): void
     {
         $this->databaseManager->getDatabase(false);
+    }
+    /**
+     * Registers the FloatingTextEntity with the EntityFactory.
+     * This allows the creation of floating text entities in the game world.
+     * 
+     * The registration includes:
+     * - The entity class (FloatingTextEntity)
+     * - A factory function that creates new instances
+     * - The identifier for the entity type
+     */
+    public function registerLeaderboardEntity(): void
+    {
+        EntityFactory::getInstance()->register(
+            FloatingTextEntity::class,
+            static function (World $world, CompoundTag $nbt): Entity {
+                $loc = EntityDataHelper::parseLocation($nbt, $world);
+                return new FloatingTextEntity($loc, "");
+            },
+            [FloatingTextEntity::class]
+        );
     }
 
     /**

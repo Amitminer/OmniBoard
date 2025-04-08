@@ -4,32 +4,40 @@ declare(strict_types=1);
 
 namespace Omniboard\tasks;
 
+use cooldogedev\BedrockEconomy\BedrockEconomy;
 use pocketmine\scheduler\Task;
-use pocketmine\math\Vector3;
+use pocketmine\entity\Location;
 use Omniboard\Omniboard;
-use Omniboard\Leaderboard\BaseFloatingText;
 use Omniboard\Utils\ConfigKeys;
+use Omniboard\Leaderboard\FloatingTextEntity;
 use SOFe\AwaitGenerator\Await;
 use Generator;
+use cooldogedev\BedrockEconomy\database\cache\GlobalCache;
 
 /**
- * Class UpdateTask
- *
- * This class handles the periodic update of the floating text leaderboard.
+ * Task to update the floating text leaderboards for top island and top money.
  */
 class UpdateTask extends Task
 {
-
-    /** @var Omniboard $plugin The main Omniboard plugin instance */
+    /**
+     * @var Omniboard The main plugin instance.
+     */
     private Omniboard $plugin;
 
-    /** @var BaseFloatingText|null $floatingText The floating text instance to be updated */
-    private ?BaseFloatingText $floatingText = null;
+    /**
+     * @var ?FloatingTextEntity The floating text entity for the top island leaderboard.
+     */
+    private ?FloatingTextEntity $floatingTextIsland = null;
+
+    /**
+     * @var ?FloatingTextEntity The floating text entity for the top money leaderboard.
+     */
+    private ?FloatingTextEntity $floatingTextMoney = null;
 
     /**
      * UpdateTask constructor.
      *
-     * @param Omniboard $plugin The main plugin instance
+     * @param Omniboard $plugin The main plugin instance.
      */
     public function __construct(Omniboard $plugin)
     {
@@ -37,80 +45,213 @@ class UpdateTask extends Task
     }
 
     /**
-     * Executes the task every scheduled interval.
+     * Called when the task is run. Updates both the top island and top money leaderboards.
      */
     public function onRun(): void
     {
-        $world = $this->plugin->getServer()->getWorldManager()->getDefaultWorld();
-        if ($world === null) {
-            $this->plugin->getLogger()->error("Default world is not loaded.");
-            return;
-        }
-        $position = $this->plugin->getConfig()->getNested(ConfigKeys::TOP_ISLAND_POSITION);
+        $this->updateTopIslandLeaderboard();
+        $this->updateTopMoneyLeaderboard();
+    }
 
-        if (is_array($position) && isset($position[0], $position[1], $position[2])) {
-            /** @var int[] $position */
-            $positionVec = new Vector3((int)$position[0], (int)$position[1], (int)$position[2]);
+    /**
+     * Updates the floating text entity for the top island leaderboard.
+     */
+    private function updateTopIslandLeaderboard(): void
+    {
+        // Top Island
+        $positionIsland = $this->plugin->getConfig()->getNested(ConfigKeys::TOP_ISLAND_POSITION);
+        $worldNameIsland = $this->plugin->getConfig()->getNested(ConfigKeys::TOP_ISLAND_WORLD, "world");
 
-            if ($this->floatingText === null) {
-                $title = $this->plugin->getConfigManager()->getTopIslandTitle();
-                $this->floatingText = new BaseFloatingText($world, $positionVec, $title, "");
+        if (is_array($positionIsland)) {
+            $world = $this->plugin->getServer()->getWorldManager()->getWorldByName($worldNameIsland);
+            if ($world === null) {
+                $this->plugin->getLogger()->error("World '$worldNameIsland' for Island leaderboard is not loaded.");
+                return;
             }
 
-            $this->updateFloatingText();
+            $location = new Location($positionIsland[0], $positionIsland[1], $positionIsland[2], $world, 0.0, 0.0);
+
+            // Only create the entity if it doesn't exist
+            if ($this->floatingTextIsland === null || $this->floatingTextIsland->isClosed()) {
+                $title = $this->plugin->getConfigManager()->getTopIslandTitle();
+                $this->floatingTextIsland = FloatingTextEntity::create($location, $title);
+                $this->floatingTextIsland->spawnToAll();
+            }
+
+            $this->updateFloatingTextIslandData();
         } else {
-            $this->plugin->getLogger()->error("Invalid position data in configuration.");
+            $this->plugin->getLogger()->warning("Top Island position is not properly configured.");
         }
     }
 
     /**
-     * Updates the floating text with the latest top islands data.
-     * Uses Await::f2c to asynchronously update the leaderboard.
+     * Updates the floating text entity for the top money leaderboard.
      */
-    private function updateFloatingText(): void
+    private function updateTopMoneyLeaderboard(): void
     {
-        // @phpstan-ignore-next-line
+        // Top Money
+        $positionMoney = $this->plugin->getConfig()->getNested(ConfigKeys::TOP_MONEY_POSITION);
+        $worldNameMoney = $this->plugin->getConfig()->getNested(ConfigKeys::TOP_MONEY_WORLD, "world");
+
+        if (is_array($positionMoney)) {
+            $world = $this->plugin->getServer()->getWorldManager()->getWorldByName($worldNameMoney);
+            if ($world === null) {
+                $this->plugin->getLogger()->error("World '$worldNameMoney' for Money leaderboard is not loaded.");
+                return;
+            }
+
+            $location = new Location($positionMoney[0], $positionMoney[1], $positionMoney[2], $world, 0.0, 0.0);
+
+            // Only create the entity if it doesn't exist
+            if ($this->floatingTextMoney === null || $this->floatingTextMoney->isClosed()) {
+                $title = $this->plugin->getConfigManager()->getTopMoneyTitle();
+                $this->floatingTextMoney = FloatingTextEntity::create($location, $title);
+                $this->floatingTextMoney->spawnToAll();
+            }
+
+            $this->updateFloatingTextMoneyData();
+        } else {
+            $this->plugin->getLogger()->warning("Top Money position is not properly configured.");
+        }
+    }
+
+    /**
+     * Asynchronously fetches and updates the text of the top island floating text entity.
+     */
+    private function updateFloatingTextIslandData(): void
+    {
         Await::f2c(function (): Generator {
             try {
-                /** @var iterable<int, array<string>> $data */
                 $data = yield from $this->plugin->getDatabaseManager()->getTopIslands();
 
-                if (is_iterable($data)) {
-                    $text = $this->generateLeaderboardText($data);
-                    // $this->plugin->getLogger()->info("Leaderboard updated: " . $text);
-
-                    if ($this->floatingText !== null) {
-                        $this->floatingText->setText($text);
-                        $this->floatingText->update();
-                    }
+                if (empty($data)) {
+                    $text = "§6§l★ §eTop Island Leaderboard §6§l★\n§7No data available yet";
                 } else {
-                    $this->plugin->getLogger()->error("Invalid data received for leaderboard.");
+                    $text = $this->generateIslandLeaderboardText($data);
+                }
+
+                if ($this->floatingTextIsland !== null && !$this->floatingTextIsland->isClosed()) {
+                    $this->floatingTextIsland->setNameTag($text);
                 }
             } catch (\Throwable $e) {
-                $this->plugin->getLogger()->error("Failed to update floating text: " . $e->getMessage());
+                $this->plugin->getLogger()->error("Failed to update Top Island floating text: " . $e->getMessage());
             }
         });
     }
 
     /**
-     * Generates the leaderboard text from data.
-     *
-     * @param iterable<int, array<string>> $data
-     * @return string
+     * Updates the text of the top money floating text entity.
      */
-    private function generateLeaderboardText(iterable $data): string
+    private function updateFloatingTextMoneyData(): void
     {
-        $text = "§d§l§oLeaderboard\n"; // Styled header
+        try {
+            if (!$this->plugin->getServer()->getPluginManager()->getPlugin("BedrockEconomy")) {
+                $text = "§6§l★ §eTop Money Leaderboard §6§l★\n§cBedrockEconomy not found!";
+                if ($this->floatingTextMoney !== null && !$this->floatingTextMoney->isClosed()) {
+                    $this->floatingTextMoney->setNameTag($text);
+                }
+                return;
+            }
+
+            $cache = GlobalCache::TOP()->getAll();
+
+            if (!is_array($cache) || empty($cache)) {
+                $text = "§6§l★ §eTop Money Leaderboard §6§l★\n§7No data available yet";
+                if ($this->floatingTextMoney !== null && !$this->floatingTextMoney->isClosed()) {
+                    $this->floatingTextMoney->setNameTag($text);
+                }
+                return;
+            }
+
+            $data = [];
+            foreach ($cache as $player => $entry) {
+                if ($entry instanceof \cooldogedev\BedrockEconomy\database\cache\CacheEntry) {
+                    $data[] = [
+                        'player' => $player,
+                        'amount' => $entry->amount,
+                        'decimals' => $entry->decimals
+                    ];
+                }
+            }
+
+            if (empty($data)) {
+                $text = "§6§l★ §eTop Money Leaderboard §6§l★\n§7No valid data available";
+            } else {
+                usort($data, fn($a, $b) => $b['amount'] <=> $a['amount']);
+
+                foreach ($data as &$entry) {
+                    $entry['amount'] = BedrockEconomy::getInstance()->getCurrency()->formatter->format($entry['amount'], $entry['decimals']);
+                }
+
+                $text = $this->generateMoneyLeaderboardText($data);
+            }
+
+            if ($this->floatingTextMoney !== null && !$this->floatingTextMoney->isClosed()) {
+                $this->floatingTextMoney->setNameTag($text);
+            }
+        } catch (\Throwable $e) {
+            $this->plugin->getLogger()->error("Failed to update Top Money floating text: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generates the formatted text for the top money leaderboard.
+     *
+     * @param iterable $data An array of player data with 'player' and 'amount'.
+     * @return string The formatted leaderboard text.
+     */
+    private function generateMoneyLeaderboardText(iterable $data): string
+    {
+        $text = "§6§l★ §eTop Money Leaderboard §6§l★\n";
         $i = 1;
 
         foreach ($data as $row) {
-            $playerRow = $row['player'] ?? null;
-            $pointsRow = $row['points'] ?? null;
+            $player = $row['player'] ?? null;
+            $amount = $row['amount'] ?? null;
 
-            if ($playerRow !== null && $pointsRow !== null) {
-                $text .= "\n " . $i . ". §7" . (string)$playerRow . "  §aTotalPoints  §f" . (string)$pointsRow . " §aPoints";
+            if ($player !== null && $amount !== null) {
+                $rankColor = match ($i) {
+                    1 => "§6",
+                    2 => "§7",
+                    3 => "§c",
+                    default => "§b",
+                };
+                $text .= "\n{$rankColor}[{$i}] §r§a{$player} §r- §e" . (string)$amount;
                 ++$i;
-                if ($i >= 11) { // Limit to 10 items (can be customized)
+                if ($i >= 11) {
+                    break;
+                }
+            }
+        }
+        return $text;
+    }
+
+    /**
+     * Generates the formatted text for the top island leaderboard.
+     *
+     * @param iterable $data An array of island data with 'player' and 'points'.
+     * @return string The formatted leaderboard text.
+     */
+    private function generateIslandLeaderboardText(iterable $data): string
+    {
+        $text = "§6§l★ §eTop Island Leaderboard §6§l★\n";
+        $i = 1;
+
+        foreach ($data as $row) {
+            $player = $row['player'] ?? "Unknown";
+            $points = $row['points'] ?? 0;
+
+            if ($player !== null && $points !== null) {
+                $rankColor = match ($i) {
+                    1 => "§6",
+                    2 => "§7",
+                    3 => "§c",
+                    default => "§b",
+                };
+                $formattedPoints = number_format((float)$points, 2);
+                $text .= "\n{$rankColor}[{$i}] §r§a{$player} §r- §e{$formattedPoints} Points";
+                ++$i;
+                if ($i >= 11) {
                     break;
                 }
             }

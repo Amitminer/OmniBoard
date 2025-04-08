@@ -11,10 +11,12 @@ class BlockPoints {
 
     /** @var array<int, float> $points An associative array mapping block type IDs to their corresponding points */
     private array $points = [];
+    private float $defaultPoints;
 
     public function __construct(Omniboard $plugin)
     {
         $config = $plugin->getConfig()->get("Blocks", []);
+        $this->defaultPoints = (float)$plugin->getConfig()->get("DefaultPoints", 1);
         if (!is_array($config)) {
             $plugin->getLogger()->warning("Blocks configuration is not valid.");
             return;
@@ -44,6 +46,6 @@ class BlockPoints {
      */
     public function getPointsForBlock(int $blockTypeId): float
     {
-        return $this->points[$blockTypeId] ?? 0.0;
+        return $this->points[$blockTypeId] ?? (float)$this->defaultPoints;
     }
 }

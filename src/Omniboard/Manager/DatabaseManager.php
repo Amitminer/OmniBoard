@@ -84,7 +84,7 @@ class DatabaseManager
                 "points" => $points
             ]);
 
-            $this->plugin->getLogger()->debug("Points added: Player={$playerName}, Points={$points}, AffectedRows={$affectedRows}");
+            //$this->plugin->getLogger()->debug("Points added: Player={$playerName}, Points={$points}, AffectedRows={$affectedRows}");
         } catch (Throwable $e) {
             $this->plugin->getLogger()->error("Failed to add points for Player={$playerName}: {$e->getMessage()}");
         }
@@ -99,5 +99,26 @@ class DatabaseManager
     {
         $result = yield from $this->database->asyncSelect(SqlQueries::ISLAND_GET_TOP, []);
         return $result;
-    }    
+    }
+
+    /**
+     * Reloads the Top Islands data by forcing a fresh query to the database.
+     */
+    public function reloadTopIslands(): Generator
+    {
+        try {
+            $result = yield from $this->database->asyncSelect(SqlQueries::ISLAND_GET_TOP, []);
+
+            if (empty($result)) {
+                // $this->plugin->getLogger()->warning("⚠️ No data found for Top Islands leaderboard.");
+            } else {
+                // $this->plugin->getLogger()->info("✅ Reloaded Top Islands leaderboard: " . json_encode($result));
+            }
+
+            return $result; // Return the data for use
+        } catch (Throwable $error) {
+            // $this->plugin->getLogger()->error("❌ Failed to reload Top Islands leaderboard: " . $error->getMessage());
+            return [];
+        }
+    }
 }
